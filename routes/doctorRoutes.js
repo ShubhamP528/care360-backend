@@ -6,10 +6,6 @@ const {
   getAppointment,
   getDoctorProfile,
   addConsultationLocation,
-  // updateDoctorProfile,
-  // addConsultationLocation,
-  // updateConsultationLocation,
-  // deleteConsultationLocation,
 } = require("../controllers/doctorController");
 const { protect, authorize } = require("../middleware/auth");
 
@@ -35,24 +31,5 @@ router.post(
 );
 
 router.get("/doctor/profile", protect, authorize("doctor"), getDoctorProfile);
-// router.put("/profile", protect, authorize("doctor"), updateDoctorProfile);
-// router.post(
-//   "/locations",
-//   protect,
-//   authorize("doctor"),
-//   addConsultationLocation
-// );
-// router.put(
-//   "/locations/:id",
-//   protect,
-//   authorize("doctor"),
-//   updateConsultationLocation
-// );
-// router.delete(
-//   "/locations/:id",
-//   protect,
-//   authorize("doctor"),
-//   deleteConsultationLocation
-// );
 
 module.exports = router;

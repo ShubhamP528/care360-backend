@@ -289,73 +289,6 @@ exports.getDoctorAvailability = async (req, res) => {
   }
 };
 
-// @desc    Update availability
-// @route   PUT /api/availability/:id
-// @access  Private (Doctor only)
-exports.updateAvailability = async (req, res) => {
-  try {
-    const { timeSlots } = req.body;
-
-    // Find doctor associated with logged-in user
-    const doctor = await Doctor.findOne({ user: req.user._id });
-
-    if (!doctor) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Doctor profile not found" });
-    }
-
-    // Find availability
-    let availability = await Availability.findById(req.params.id);
-
-    if (!availability) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Availability not found" });
-    }
-
-    // Check ownership
-    if (availability.doctor.toString() !== doctor._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to update this availability",
-      });
-    }
-
-    // Ensure we don't unbook already booked slots
-    const updatedTimeSlots = timeSlots.map((newSlot) => {
-      const existingSlot = availability.timeSlots.find(
-        (oldSlot) =>
-          oldSlot.startTime === newSlot.startTime &&
-          oldSlot.endTime === newSlot.endTime
-      );
-
-      if (existingSlot && existingSlot.isBooked) {
-        return existingSlot;
-      }
-
-      return newSlot;
-    });
-
-    // Update availability
-    availability = await Availability.findByIdAndUpdate(
-      req.params.id,
-      { timeSlots: updatedTimeSlots },
-      { new: true, runValidators: true }
-    );
-
-    res.status(200).json({
-      success: true,
-      data: availability,
-    });
-  } catch (error) {
-    console.error("Update availability error:", error);
-    res
-      .status(500)
-      .json({ success: false, message: "Server error", error: error.message });
-  }
-};
-
 // @desc    Delete availability
 // @route   DELETE /api/availability/:id
 // @access  Private (Doctor only)
@@ -371,37 +304,47 @@ exports.deleteAvailability = async (req, res) => {
     }
 
     // Find availability
-    const availability = await Availability.findById(req.params.id);
+    // const availability = await Availability.findById(req.params.id);
 
-    if (!availability) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Availability not found" });
+    const availability = await Availability.findOneAndUpdate(
+      {
+        doctor: doctor._id,
+        "timeSlots._id": req.params.id,
+        "timeSlots.isBooked": false,
+      }, // Match doctor, date, and timeSlotId
+      { $pull: { timeSlots: { _id: req.params.id } } }, // Remove the time slot by its ID
+      { new: true, useFindAndModify: false } // Return the updated document
+    );
+    if (availability) {
+      console.log("Slot deleted successfully");
+      console.log("Updated availability:", availability);
+    } else {
+      console.log("Availability or time slot not found");
     }
 
-    // Check ownership
-    if (availability.doctor.toString() !== doctor._id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: "Not authorized to delete this availability",
-      });
-    }
+    // // Check ownership
+    // if (availability.doctor.toString() !== doctor._id.toString()) {
+    //   return res.status(403).json({
+    //     success: false,
+    //     message: "Not authorized to delete this availability",
+    //   });
+    // }
 
-    // Check if any slots are booked
-    const hasBookedSlots = availability.timeSlots.some((slot) => slot.isBooked);
+    // // Check if any slots are booked
+    // const hasBookedSlots = availability.timeSlots.some((slot) => slot.isBooked);
 
-    if (hasBookedSlots) {
-      return res.status(400).json({
-        success: false,
-        message: "Cannot delete availability with booked appointments",
-      });
-    }
+    // if (hasBookedSlots) {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Cannot delete availability with booked appointments",
+    //   });
+    // }
 
-    await availability.remove();
+    // await availability.remove();
 
     res.status(200).json({
       success: true,
-      data: {},
+      data: availability,
     });
   } catch (error) {
     console.error("Delete availability error:", error);
